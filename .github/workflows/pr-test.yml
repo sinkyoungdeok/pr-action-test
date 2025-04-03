@@ -1,0 +1,13 @@
+name: PR Info Workflow
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  pr-info:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run PR Info Action
+        uses: ./
