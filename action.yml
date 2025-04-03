@@ -2,7 +2,7 @@ name: "PR Info Action"
 description: "Python으로 PR 이벤트에서 PR 번호를 추출하는 액션"
 branding:
   icon: "git-pull-request"
-  color: "blue"
+  color: "red"
 runs:
   using: "docker"
   image: "Dockerfile"
