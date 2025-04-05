@@ -1,6 +1,29 @@
-import os
+import base64
 import json
+import os
+
 import requests
+
+
+def get_full_file_content(owner, repo, file_path, ref, token):
+    """
+    주어진 리포지토리와 경로, ref(커밋 SHA 등)를 기준으로 파일 전체 내용을 가져옵니다.
+    반환된 내용은 Base64 디코딩 후의 텍스트입니다.
+    """
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}?ref={ref}"
+    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        print(f"[오류] 파일 '{file_path}' 내용을 가져오는데 실패했습니다: {response.status_code}")
+        return None
+    data = response.json()
+    if "content" in data and data.get("encoding") == "base64":
+        # Base64로 인코딩된 파일 내용을 디코딩
+        content = base64.b64decode(data["content"]).decode("utf-8")
+        return content
+    else:
+        print(f"[오류] 파일 '{file_path}'에서 내용을 찾지 못했습니다.")
+        return None
 
 def main():
     event_path = os.environ.get("GITHUB_EVENT_PATH")
@@ -41,21 +64,29 @@ def main():
         "Accept": "application/vnd.github.v3+json",
     }
 
-    # 1. PR에 변경된 파일 목록과 patch 정보 가져오기
+    # 1. PR에 변경된 파일 목록 가져오기
     files_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/files"
     response = requests.get(files_url, headers=headers)
     if response.status_code != 200:
         print("PR 파일 목록을 가져오는데 실패했습니다:", response.status_code, response.text)
-    else:
-        pr_files = response.json()
-        print("\nPR에서 변경된 파일들:")
-        for file in pr_files:
-            filename = file.get("filename")
-            patch = file.get("patch", "")
-            print(f"\n파일: {filename}")
-            print("Patch:")
-            print(patch)
-            print("-" * 40)
+        return
+    pr_files = response.json()
+    print("\nPR에서 변경된 파일들:")
+    for file in pr_files:
+        filename = file.get("filename")
+        print(f"\n파일: {filename}")
+        # 2. PR의 head commit SHA를 이용하여 파일 전체 내용 가져오기
+        head_ref = pull_request.get("head", {}).get("sha")
+        if head_ref:
+            content = get_full_file_content(owner, repo, filename, head_ref, token)
+            if content is not None:
+                print("파일 전체 내용:")
+                print(content)
+            else:
+                print("파일 내용을 가져오지 못했습니다.")
+        else:
+            print("head commit SHA를 찾을 수 없습니다.")
+        print("-" * 40)
 
     # 2. PR의 커밋 목록 가져오기
     commits_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/commits"
